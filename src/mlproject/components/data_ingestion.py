@@ -1,7 +1,7 @@
 ## Mysql---> Train test split--->dataset
 import os
 import sys
-from src.mlproject.expception import CustomException
+from src.mlproject.exception import CustomException
 from src.mlproject.logger import logging
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -25,7 +25,7 @@ class DataIngestion:
     def initiate_data_ingestion(self):
         try:
             ##reading the data from mysql database
-            df=read_sql_data()
+            df=pd.read_csv(os.path.join('notebook/data','raw.csv'))
             logging.info("Reading Completed mysql database")
 
             os.makedirs(os.path.dirname(self.ingestion_config.train_data_path), exist_ok=True)
