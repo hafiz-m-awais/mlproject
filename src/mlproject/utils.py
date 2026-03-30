@@ -23,7 +23,8 @@ def read_sql_data():
             db=db
         )
         logging.info("Connection Established %s", mydb)
-        df=pd.read_sql("SELECT * FROM college", mydb)
+        df=pd.read_sql("SELECT * FROM students", mydb)
         print(df.head())
+        return df
     except Exception as ex:
-        raise CustomException(ex)
+        raise CustomException(ex, sys)
