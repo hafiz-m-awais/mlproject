@@ -1,6 +1,7 @@
 import os
 import sys
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from catboost import CatBoostRegressor
 from sklearn.ensemble import (
@@ -14,6 +15,8 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV
+#import mlflow
+import mlflow
 
 from src.mlproject.exception import CustomException
 from src.mlproject.logger import logging
@@ -27,6 +30,10 @@ class ModelTrainerConfig:
 class ModelTrainer:
     def __init__(self):
         self.model_trainer_config=ModelTrainerConfig()
+
+    def eval_metrics(self, actual, pred):
+        r2_square=r2_score(actual, pred)
+        return r2_square
 
     def initiate_model_trainer(self, train_array, test_array):
         try:
@@ -83,7 +90,7 @@ class ModelTrainer:
                 },
                 "CatBoosting Regressor": {
                     "iterations": [100],
-                    "learning_rate": [0.1],
+                    "learning_rate": [0.01],
                     "depth": [6],
                     "l2_leaf_reg": [3]
                 },
@@ -102,6 +109,37 @@ class ModelTrainer:
                 list(model_report.values()).index(best_model_score)
             ]
             best_model=models[best_model_name]
+
+            print(f"Best model found on both training and testing dataset: {best_model_name} with r2 score: {best_model_score}" )
+            
+            model_names=list(models.keys())
+            actual_model=""
+
+            for model in model_names:
+                if model in best_model_name:
+                    actual_model=actual_model+model
+
+            best_params= params[actual_model]
+            print(f"Best hyperparameters for {best_model_name}: {best_params}")
+
+            mlflow.set_registry_uri("https://dagshub.com/hafizawais1411/mlproject.mlflow")
+            tracking_url_type_store=urlparse(mlflow.get_tracking_uri()).scheme
+            
+            # mlflow
+            with mlflow.start_run(run_name="model_trainer"):
+
+                predicted_qualities = best_model.predict(X_test)
+                r2_val = self.eval_metrics(y_test, predicted_qualities)
+                mlflow.log_params(best_params)
+                mlflow.log_metric("r2_score", r2_val)
+
+
+            #model registry does not work with file store 
+            if tracking_url_type_store != "file":
+                mlflow.sklearn.log_model(best_model, "model", registered_model_name=best_model_name)
+            else:
+                mlflow.sklearn.log_model(best_model, "model")
+            
 
             if best_model_score < 0.6:
                 raise CustomException("No best model found")
